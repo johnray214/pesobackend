@@ -55,7 +55,15 @@ class EmployeeController extends Controller
 
     public function store(StoreEmployeeRequest $request): JsonResponse
     {
-        $validated = $request->safe()->only(['full_name', 'job_title', 'office']);
+        $validated = $request->safe()->only([
+            'full_name',
+            'first_name',
+            'middle_initial',
+            'last_name',
+            'suffix',
+            'job_title',
+            'office'
+        ]);
         $base = is_array($validated) ? $validated : $validated->all();
 
         $employee = DB::transaction(function () use ($request, $base) {

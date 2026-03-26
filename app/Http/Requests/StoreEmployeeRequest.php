@@ -28,6 +28,10 @@ class StoreEmployeeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'first_name'     => ['required', 'string', 'max:100'],
+            'middle_initial' => ['nullable', 'string', 'size:1', 'alpha'],
+            'last_name'      => ['required', 'string', 'max:100'],
+            'suffix'         => ['nullable', 'string', 'max:20'],
             'full_name' => ['required', 'string', 'max:255'],
             'job_title' => ['required', 'string', 'max:255'],
             'office' => ['required', 'string', 'max:255'],

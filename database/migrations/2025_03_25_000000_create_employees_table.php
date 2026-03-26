@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
             $table->string('full_name');
+            $table->string('first_name', 100)->nullable();
+            $table->string('middle_initial', 1)->nullable();  // single letter, no dot
+            $table->string('last_name', 100)->nullable();
+            $table->string('suffix', 20)->nullable();
             $table->string('job_title');
             $table->string('office');
             $table->unsignedInteger('id_number');

@@ -10,6 +10,10 @@ class Employee extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'first_name',
+        'middle_initial',
+        'last_name',
+        'suffix',
         'full_name',
         'job_title',
         'office',
