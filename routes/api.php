@@ -7,6 +7,10 @@ use App\Http\Controllers\Api\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Auth\EmployerAuthController;
 use App\Http\Controllers\Api\Auth\JobseekerAuthController;
 
+Route::get('/debug-notifs', function() {
+    return \App\Models\NotificationRead::with('notification')->where('recipient_type', 'employer')->orderByDesc('created_at')->limit(10)->get();
+});
+
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
@@ -30,6 +34,7 @@ use App\Http\Controllers\Api\Employer\EmployerJobListingController;
 use App\Http\Controllers\Api\Employer\EmployerApplicationController;
 use App\Http\Controllers\Api\Employer\EmployerProfileController;
 use App\Http\Controllers\Api\Employer\EmployerNotificationController;
+use App\Http\Controllers\Api\Employer\EmployerInvitationController;
 
 // Jobseeker Controllers
 use App\Http\Controllers\Api\Jobseeker\JobseekerProfileController;
@@ -39,7 +44,6 @@ use App\Http\Controllers\Api\Jobseeker\JobseekerNotificationController;
 use App\Http\Controllers\Api\Jobseeker\JobseekerSavedJobController;
 use App\Http\Controllers\Api\Jobseeker\JobseekerSkillsController;
 use App\Http\Controllers\Api\Jobseeker\JobseekerEventRegistrationController;
-use App\Http\Controllers\EmployeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,6 +65,7 @@ Route::post('/employer/reset-password', [EmployerAuthController::class, 'resetPa
 
 // Jobseeker Auth
 Route::post('/jobseeker/login', [JobseekerAuthController::class, 'login']);
+Route::get('/jobseeker/check-email', [JobseekerAuthController::class, 'checkEmail']);
 Route::post('/jobseeker/register', [JobseekerAuthController::class, 'register']);
 Route::post('/jobseeker/verify-otp', [JobseekerAuthController::class, 'verifyOtp']);
 Route::post('/jobseeker/resend-otp', [JobseekerAuthController::class, 'resendOtp']);
@@ -88,9 +93,6 @@ Route::get('/public/map/employers', [PublicMapController::class, 'employers']);
 
 // Public Skills Catalog (used by jobseekers to pick skills)
 Route::get('/public/skills', [PublicSkillsController::class, 'index']);
-
-Route::get('employees/by-name', [EmployeeController::class, 'showByFullName']);
-Route::apiResource('employees', EmployeeController::class);
 
 /*
 |--------------------------------------------------------------------------
@@ -205,6 +207,7 @@ Route::middleware(['auth:employer', \App\Http\Middleware\EnsureEmployer::class])
     Route::get('/applications/{id}', [EmployerApplicationController::class, 'show']);
     Route::patch('/applications/{id}/status', [EmployerApplicationController::class, 'updateStatus']);
     Route::get('/potential-applicants', [EmployerApplicationController::class, 'potentialApplicants']);
+    Route::post('/potential-applicants/{id}/invite', [EmployerApplicationController::class, 'sendInvite']);
     
     // Profile
     Route::get('/profile', [EmployerProfileController::class, 'show']);
@@ -219,6 +222,9 @@ Route::middleware(['auth:employer', \App\Http\Middleware\EnsureEmployer::class])
     Route::post('/notifications/mark-all-read', [EmployerNotificationController::class, 'markAllAsRead']);
     Route::post('/notifications/{id}/mark-read', [EmployerNotificationController::class, 'markRead']);
     Route::get('/notifications/{id}', [EmployerNotificationController::class, 'show']);
+
+    // Invitations (send to jobseekers)
+    Route::post('/invite/{jobseeker_id}', [EmployerInvitationController::class, 'sendInvitation']);
 });
 
 /*

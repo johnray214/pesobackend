@@ -8,13 +8,11 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * Multiple rows per full_name are allowed when job_title changes (new card only).
      */
     public function up(): void
     {
-        Schema::table('employees', function (Blueprint $table) {
-            $table->dropUnique(['full_name']);
+        Schema::table('jobseekers', function (Blueprint $box) {
+            $box->boolean('is_onboarding_done')->default(false)->after('status');
         });
     }
 
@@ -23,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('employees', function (Blueprint $table) {
-            $table->unique('full_name');
+        Schema::table('jobseekers', function (Blueprint $box) {
+            $box->dropColumn('is_onboarding_done');
         });
     }
 };

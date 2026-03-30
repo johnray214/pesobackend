@@ -20,6 +20,10 @@ class Jobseeker extends Authenticatable
         'email_verified_at',
         'otp_code',
         'otp_expires_at',
+        'otp_send_count_today',
+        'otp_send_count_date',
+        'otp_resend_count',
+        'otp_resend_cooldown_until',
         'password',
         'contact',
         'address',
@@ -41,6 +45,7 @@ class Jobseeker extends Authenticatable
         'avatar_path',
         'latitude',
         'longitude',
+        'is_onboarding_done',
         'status',
     ];
 
@@ -54,7 +59,10 @@ class Jobseeker extends Authenticatable
     protected $casts = [
         'password' => 'hashed',
         'email_verified_at' => 'datetime',
+        'otp_expires_at' => 'datetime',
+        'otp_resend_cooldown_until' => 'datetime',
         'date_of_birth' => 'date',
+        'is_onboarding_done' => 'boolean',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
     ];
@@ -91,8 +99,11 @@ class Jobseeker extends Authenticatable
 
     public function sendPasswordResetNotification($token)
     {
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:8080');
-        $resetUrl = $frontendUrl . '/jobseeker/reset-password?token=' . $token . '&email=' . urlencode($this->email);
+        $base = rtrim((string) config('app.url'), '/');
+        $resetUrl = $base.'/jobseeker/reset-password?'.http_build_query([
+            'token' => $token,
+            'email' => $this->email,
+        ]);
         $name = $this->first_name;
 
         try {
@@ -102,7 +113,7 @@ class Jobseeker extends Authenticatable
                     [
                         'From' => [
                             'Email' => env('MAILJET_FROM_EMAIL', 'yujohnray96@gmail.com'),
-                            'Name'  => env('MAILJET_FROM_NAME', 'PESO')
+                            'Name'  => env('MAILJET_FROM_NAME', 'PESO Connect')
                         ],
                         'To' => [
                             [
@@ -112,7 +123,7 @@ class Jobseeker extends Authenticatable
                         ],
                         'TemplateID' => 7861338,
                         'TemplateLanguage' => true,
-                        'Subject' => 'Reset Your Password — PESO',
+                        'Subject' => 'Reset Your Password — PESO Connect',
                         'Variables' => [
                             'first_name'   => $name,
                             'email'        => $this->email,
@@ -122,9 +133,17 @@ class Jobseeker extends Authenticatable
                     ]
                 ]
             ];
-            $mj->post(\Mailjet\Resources::$Email, ['body' => $body]);
+            $response = $mj->post(\Mailjet\Resources::$Email, ['body' => $body]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Mailjet Exception (Jobseeker Password Reset): ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Mailjet transport (Jobseeker Password Reset): ' . $e->getMessage());
+            throw $e;
+        }
+
+        if (! $response->success()) {
+            \Illuminate\Support\Facades\Log::error(
+                'Mailjet API Error (Jobseeker Password Reset): ' . json_encode($response->getData())
+            );
+            throw new \RuntimeException('Failed to send password reset email.');
         }
     }
 }

@@ -11,7 +11,8 @@ class JobseekerJobListingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = JobListing::with(['employer:id,company_name', 'skills'])
+        // Load full employer row so `photo` is always present in JSON (avoid partial select quirks).
+        $query = JobListing::with(['employer', 'skills'])
             ->where('status', 'open');
         
         if ($request->has('search')) {
@@ -65,19 +66,16 @@ class JobseekerJobListingController extends Controller
 
         $jobListings = $query->paginate(15);
 
-        // Include per-job match percentage for authenticated jobseekers
-        // so mobile/web list views can render real match badges.
-        if ($jobseeker) {
-            $jobListings->getCollection()->transform(function ($job) use ($jobseeker) {
+        // Match % (employer_photo_url comes from JobListing model accessor + $appends).
+        $jobListings->getCollection()->transform(function ($job) use ($jobseeker) {
+            if ($jobseeker) {
                 $job->setAttribute('match_percentage', Application::calculateMatchScore($jobseeker, $job));
-                return $job;
-            });
-        } else {
-            $jobListings->getCollection()->transform(function ($job) {
+            } else {
                 $job->setAttribute('match_percentage', 0);
-                return $job;
-            });
-        }
+            }
+
+            return $job;
+        });
 
         return response()->json([
             'success' => true,

@@ -29,6 +29,8 @@ class ApplicationResource extends JsonResource
                     'email' => $this->jobseeker->email,
                     'address' => $this->jobseeker->address,
                     'contact' => $this->jobseeker->contact,
+                    'sex' => $this->jobseeker->sex,
+                    'date_of_birth' => $this->jobseeker->date_of_birth,
                     'skills' => $this->jobseeker->skills->pluck('skill')->toArray(),
                     'education_level' => $this->jobseeker->education_level,
                     'job_experience' => $this->jobseeker->job_experience,

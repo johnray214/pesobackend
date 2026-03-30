@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Employer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EmployerResource;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -104,7 +105,7 @@ class EmployerProfileController extends Controller
     public function uploadPhoto(Request $request)
     {
         $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         $employer = $request->user();
@@ -121,7 +122,7 @@ class EmployerProfileController extends Controller
             'success' => true,
             'message' => 'Photo uploaded successfully',
             'data'    => [
-                'photo' => Storage::disk('public')->url($path),
+                'photo' => PublicStorageUrl::fromRequest($request, $path),
             ],
         ]);
     }
@@ -147,7 +148,7 @@ class EmployerProfileController extends Controller
                     "employer-docs/{$employer->id}", 'public'
                 );
                 $employer->update([$column => $path]);
-                $paths[$field] = Storage::disk('public')->url($path);
+                $paths[$field] = PublicStorageUrl::fromRequest($request, $path);
             }
         }
 

@@ -15,6 +15,7 @@ class JobListingResource extends JsonResource
             'employer' => $this->whenLoaded('employer', fn() => [
                 'id' => $this->employer->id,
                 'company_name' => $this->employer->company_name,
+                'photo' => $this->employer->photo,
             ]),
             'title' => $this->title,
             'type' => $this->type,

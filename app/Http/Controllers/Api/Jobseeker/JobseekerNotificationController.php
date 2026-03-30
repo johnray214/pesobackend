@@ -14,7 +14,12 @@ class JobseekerNotificationController extends Controller
         
         $query = NotificationRead::where('recipient_type', 'jobseeker')
             ->where('recipient_id', $jobseeker->id)
-            ->with('notification');
+            ->with([
+                'notification',
+                'notification.jobListing',
+                'notification.jobListing.employer',
+                'notification.jobListing.skills',
+            ]);
         
         if ($request->has('is_read')) {
             if ($request->is_read) {

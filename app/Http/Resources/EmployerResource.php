@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class EmployerResource extends JsonResource
 {
@@ -12,7 +12,7 @@ class EmployerResource extends JsonResource
     {
         return [
             'id'             => $this->id,
-            'photo'          => $this->photo ? Storage::disk('public')->url($this->photo) : null,
+            'photo'          => PublicStorageUrl::fromRequest($request, $this->photo),
             'company_name'   => $this->company_name,
             'contact_person' => $this->contact_person,
             'email'          => $this->email,
@@ -48,12 +48,8 @@ class EmployerResource extends JsonResource
             'verified_at'    => $this->verified_at,
 
             // ── Documents ─────────────────────────────────────────────
-            'biz_permit_url' => $this->biz_permit_path
-                ? Storage::disk('public')->url($this->biz_permit_path)
-                : null,
-            'bir_cert_url'   => $this->bir_cert_path
-                ? Storage::disk('public')->url($this->bir_cert_path)
-                : null,
+            'biz_permit_url' => PublicStorageUrl::fromRequest($request, $this->biz_permit_path),
+            'bir_cert_url'   => PublicStorageUrl::fromRequest($request, $this->bir_cert_path),
 
             // ── Admin Dashboard Employer Properties ─────────────────────
             'total_hired'      => $this->total_hired ?? 0,

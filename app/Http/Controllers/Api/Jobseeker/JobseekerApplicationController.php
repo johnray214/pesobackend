@@ -108,6 +108,26 @@ class JobseekerApplicationController extends Controller
             'read_at'         => null,
         ]);
 
+        // Create notification for Employer: New Applicant
+        $employerNotification = Notification::create([
+            'subject'        => 'New Job Applicant',
+            'message'        => "{$jobseeker->fullName()} has submitted an application for the {$jobListing->title} position.",
+            'type'           => 'applicant',
+            'job_listing_id' => $jobListing->id,
+            'recipients'     => 'specific',
+            'scheduled_at'   => null,
+            'sent_at'        => now(),
+            'status'         => 'sent',
+            'created_by'     => null,
+        ]);
+
+        NotificationRead::create([
+            'notification_id' => $employerNotification->id,
+            'recipient_type'  => 'employer',
+            'recipient_id'    => $jobListing->employer_id,
+            'read_at'         => null,
+        ]);
+
         return response()->json([
             'success' => true,
             'data' => $application,

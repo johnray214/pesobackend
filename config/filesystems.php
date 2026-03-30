@@ -33,7 +33,10 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Must be false: when true, Laravel registers GET /storage/{path} for the
+            // private disk and returns 403 for paths under the public disk (same URL
+            // as employer photos). Public files are served via routes/web.php + CORS.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

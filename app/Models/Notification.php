@@ -12,6 +12,8 @@ class Notification extends Model
     protected $fillable = [
         'subject',
         'message',
+        'type',
+        'job_listing_id',
         'recipients',
         'scheduled_at',
         'sent_at',
@@ -32,6 +34,11 @@ class Notification extends Model
     public function reads()
     {
         return $this->hasMany(NotificationRead::class);
+    }
+
+    public function jobListing()
+    {
+        return $this->belongsTo(JobListing::class);
     }
 
     public function isSent(): bool

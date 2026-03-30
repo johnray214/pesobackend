@@ -167,18 +167,34 @@ class EmployerJobListingController extends Controller
         $employer = $request->user();
 
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'type'         => 'required|string|max:50',
-            'location'     => 'required|string|max:255',
-            'salary_range' => 'nullable|string|max:100',
-            'description'  => 'required|string',
-            'slots'        => 'required|integer|min:1',
-            'status'       => 'sometimes|string|max:20',
-            'posted_date'  => 'nullable|date',
-            'deadline'     => 'nullable|date',
-            'skills'       => 'nullable|array',
-            'skills.*'     => 'string|max:100',
+            'title'               => 'required|string|max:255',
+            'type'                => 'required|string|max:50',
+            'location'            => 'required|string|max:255',
+            'salary'              => 'nullable|string|max:100',
+            'salary_range'        => 'nullable|string|max:100',
+            'education_level'     => 'nullable|string|max:80',
+            'experience_required' => 'nullable|string|max:80',
+            'description'         => 'required|string',
+            'slots'               => 'required|integer|min:1',
+            'status'              => 'sometimes|string|max:20',
+            'posted_date'         => 'nullable|date',
+            'deadline'            => 'nullable|date',
+            'daysLeft'            => 'nullable|integer|min:0',
+            'skills'              => 'nullable|array',
+            'skills.*'            => 'string|max:100',
         ]);
+
+        // Map frontend `salary` field to `salary_range`
+        if (!isset($validated['salary_range']) && isset($validated['salary'])) {
+            $validated['salary_range'] = $validated['salary'];
+        }
+        unset($validated['salary']);
+
+        // Map frontend `daysLeft` to an actual `deadline` date
+        if (!isset($validated['deadline']) && isset($validated['daysLeft']) && $validated['daysLeft'] > 0) {
+            $validated['deadline'] = now()->addDays((int) $validated['daysLeft'])->toDateString();
+        }
+        unset($validated['daysLeft']);
 
         // Normalise type and status to lowercase to match DB enum
         $validated['type']   = $this->normalise($validated['type']);
@@ -230,18 +246,34 @@ class EmployerJobListingController extends Controller
         $jobListing = JobListing::where('employer_id', $employer->id)->findOrFail($id);
 
         $validated = $request->validate([
-            'title'        => 'sometimes|string|max:255',
-            'type'         => 'sometimes|string|max:50',
-            'location'     => 'sometimes|string|max:255',
-            'salary_range' => 'nullable|string|max:100',
-            'description'  => 'sometimes|string',
-            'slots'        => 'sometimes|integer|min:1',
-            'status'       => 'sometimes|string|max:20',
-            'posted_date'  => 'nullable|date',
-            'deadline'     => 'nullable|date',
-            'skills'       => 'nullable|array',
-            'skills.*'     => 'string|max:100',
+            'title'               => 'sometimes|string|max:255',
+            'type'                => 'sometimes|string|max:50',
+            'location'            => 'sometimes|string|max:255',
+            'salary'              => 'nullable|string|max:100',
+            'salary_range'        => 'nullable|string|max:100',
+            'education_level'     => 'nullable|string|max:80',
+            'experience_required' => 'nullable|string|max:80',
+            'description'         => 'sometimes|string',
+            'slots'               => 'sometimes|integer|min:1',
+            'status'              => 'sometimes|string|max:20',
+            'posted_date'         => 'nullable|date',
+            'deadline'            => 'nullable|date',
+            'daysLeft'            => 'nullable|integer|min:0',
+            'skills'              => 'nullable|array',
+            'skills.*'            => 'string|max:100',
         ]);
+
+        // Map frontend `salary` field to `salary_range`
+        if (!isset($validated['salary_range']) && isset($validated['salary'])) {
+            $validated['salary_range'] = $validated['salary'];
+        }
+        unset($validated['salary']);
+
+        // Map frontend `daysLeft` to an actual `deadline` date
+        if (!isset($validated['deadline']) && isset($validated['daysLeft']) && $validated['daysLeft'] > 0) {
+            $validated['deadline'] = now()->addDays((int) $validated['daysLeft'])->toDateString();
+        }
+        unset($validated['daysLeft']);
 
         // Normalise type and status
         if (isset($validated['type']))   $validated['type']   = $this->normalise($validated['type']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employer;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 
 class PublicMapController extends Controller
@@ -25,10 +26,12 @@ class PublicMapController extends Controller
             }])
             ->orderBy('company_name')
             ->get()
-            ->map(function ($e) {
+            ->map(function ($e) use ($request) {
                 return [
                     'id' => $e->id,
                     'company_name' => $e->company_name,
+                    'photo' => $e->photo,
+                    'photo_url' => PublicStorageUrl::fromRequest($request, $e->photo),
                     'address_full' => $e->address_full,
                     'city' => $e->city,
                     'province' => $e->province,

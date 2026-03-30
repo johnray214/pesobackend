@@ -286,14 +286,23 @@ class AdminDashboardController extends Controller
     private function buildPlacementChart(string $period, Carbon $from, Carbon $to): \Illuminate\Support\Collection
     {
         $buckets = $this->buildBuckets($period, $from, $to);
-        $statuses = ['hired' => 'placement', 'processing' => 'processing', 'pending' => 'registration', 'rejected' => 'rejection'];
-
         foreach ($buckets as &$b) {
-            foreach ($statuses as $dbStatus => $key) {
-                $b[$key] = Application::where('status', $dbStatus)
-                    ->whereBetween('updated_at', [$b['start'], $b['end']])
-                    ->count();
-            }
+            $b['placement'] = Application::where('status', 'hired')
+                ->whereBetween('updated_at', [$b['start'], $b['end']])
+                ->count();
+                
+            $b['processing'] = Application::whereIn('status', ['shortlisted', 'interview'])
+                ->whereBetween('updated_at', [$b['start'], $b['end']])
+                ->count();
+                
+            $b['registration'] = Application::where('status', 'reviewing')
+                ->whereBetween('updated_at', [$b['start'], $b['end']])
+                ->count();
+                
+            $b['rejection'] = Application::where('status', 'rejected')
+                ->whereBetween('updated_at', [$b['start'], $b['end']])
+                ->count();
+                
             unset($b['start'], $b['end']);
         }
 

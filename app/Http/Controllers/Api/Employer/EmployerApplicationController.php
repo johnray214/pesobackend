@@ -113,11 +113,13 @@ class EmployerApplicationController extends Controller
             switch ($newStatus) {
                 case 'reviewing':
                     $subject = 'Application received';
-                    $message = "Your application for {$job->title} at {$company} has been received and is under review.";
+                    $message = "Your application for **{$job->title}** at **{$company}** has been received and is under review.";
+                    $type = 'status_reviewing';
                     break;
                 case 'shortlisted':
-                    $subject = 'Application in process';
-                    $message = "Your application for {$job->title} at {$company} is now being processed.";
+                    $subject = 'You have been Shortlisted!';
+                    $message = "Great news! You have been shortlisted for the **{$job->title}** position at **{$company}**. The employer will contact you soon for the next steps.";
+                    $type = 'status_shortlisted';
                     
                     try {
                         $mj = new \Mailjet\Client(env('MAILJET_API_KEY'), env('MAILJET_SECRET_KEY'), true, ['version' => 'v3.1']);
@@ -147,8 +149,9 @@ class EmployerApplicationController extends Controller
                     }
                     break;
                 case 'interview':
-                    $subject = 'Application in process';
-                    $message = "Your application for {$job->title} at {$company} is now being processed.";
+                    $subject = 'Interview Scheduled';
+                    $message = "You have been scheduled for an interview for the **{$job->title}** position at **{$company}**. Please check your email for the full details of the schedule.";
+                    $type = 'status_interview';
 
                     try {
                         $mj = new \Mailjet\Client(env('MAILJET_API_KEY'), env('MAILJET_SECRET_KEY'), true, ['version' => 'v3.1']);
@@ -182,8 +185,9 @@ class EmployerApplicationController extends Controller
                     }
                     break;
                 case 'hired':
-                    $subject = 'Application successful';
-                    $message = "Congratulations! You have been hired for {$job->title} at {$company}.";
+                    $subject = 'Congratulations — You are Hired!';
+                    $message = "Outstanding! You have been officially hired for **{$job->title}** at **{$company}**. Welcome to the team!";
+                    $type = 'status_hired';
 
                     try {
                         $mj = new \Mailjet\Client(env('MAILJET_API_KEY'), env('MAILJET_SECRET_KEY'), true, ['version' => 'v3.1']);
@@ -223,8 +227,9 @@ class EmployerApplicationController extends Controller
                     }
                     break;
                 case 'rejected':
-                    $subject = 'Application update';
-                    $message = "Your application for {$job->title} at {$company} was not selected. Please consider applying to other opportunities.";
+                    $subject = 'Application Update';
+                    $message = "Thank you for your interest in the **{$job->title}** position at **{$company}**. Unfortunately, the employer has decided not to proceed with your application at this time.";
+                    $type = 'status_rejected';
 
                     try {
                         $mj = new \Mailjet\Client(env('MAILJET_API_KEY'), env('MAILJET_SECRET_KEY'), true, ['version' => 'v3.1']);
@@ -255,17 +260,20 @@ class EmployerApplicationController extends Controller
                     break;
                 default:
                     $subject = 'Application update';
-                    $message = "There is an update to your application for {$job->title} at {$company}.";
+                    $message = "There is an update to your application for **{$job->title}** at **{$company}**.";
+                    $type = 'application_update';
             }
 
             $notification = Notification::create([
-                'subject'      => $subject,
-                'message'      => $message,
-                'recipients'   => 'jobseekers',
-                'scheduled_at' => null,
-                'sent_at'      => now(),
-                'status'       => 'sent',
-                'created_by'   => $employer->id,
+                'subject'        => $subject,
+                'message'        => $message,
+                'type'           => $type,
+                'job_listing_id' => $job->id,
+                'recipients'     => 'jobseekers',
+                'scheduled_at'   => null,
+                'sent_at'        => now(),
+                'status'         => 'sent',
+                'created_by'     => $employer->id,
             ]);
 
             NotificationRead::create([
@@ -312,16 +320,18 @@ class EmployerApplicationController extends Controller
         // Calculate match score and best matching job for each
         $jobseekers->getCollection()->transform(function ($jobseeker) use ($jobListings) {
             $maxScore = 0;
-            $bestJob = null;
+            $bestJob  = null;
             foreach ($jobListings as $job) {
                 $score = \App\Models\Application::calculateMatchScore($jobseeker, $job);
                 if ($score > $maxScore) {
                     $maxScore = $score;
-                    $bestJob = $job;
+                    $bestJob  = $job;
                 }
             }
-            $jobseeker->match_score = $maxScore;
+            $jobseeker->match_score    = $maxScore;
             $jobseeker->best_job_match = $bestJob?->title ?? null;
+            $jobseeker->best_job_skills = $bestJob ? $bestJob->skills->pluck('skill')->values() : [];
+            $jobseeker->best_job_id = $bestJob?->id ?? null;
             return $jobseeker;
         });
 
@@ -330,4 +340,103 @@ class EmployerApplicationController extends Controller
             'data' => $jobseekers,
         ]);
     }
+
+    /**
+     * Send a job invitation email to a potential applicant (jobseeker).
+     */
+    public function sendInvite(Request $request, $jobseekerId)
+    {
+        $employer = $request->user();
+
+        $jobseeker = \App\Models\Jobseeker::with('skills')->findOrFail($jobseekerId);
+
+        // Find the best-matching job for this jobseeker
+        $jobListings = $employer->jobListings()->with('skills')->get();
+        $maxScore = 0;
+        $bestJob  = null;
+        foreach ($jobListings as $job) {
+            $score = \App\Models\Application::calculateMatchScore($jobseeker, $job);
+            if ($score > $maxScore) { $maxScore = $score; $bestJob = $job; }
+        }
+
+        if (!$bestJob) {
+            return response()->json(['success' => false, 'message' => 'No matching job listing found.'], 422);
+        }
+
+        $company   = $employer->company_name ?? 'Employer';
+        $topSkills = $jobseeker->skills->pluck('skill')->take(3)->implode(', ');
+        $applyUrl  = env('FRONTEND_URL', 'http://localhost:8080') . '/jobseeker/jobs/' . $bestJob->id;
+
+        // Send Mailjet email
+        try {
+            $mj = new \Mailjet\Client(env('MAILJET_API_KEY'), env('MAILJET_SECRET_KEY'), true, ['version' => 'v3.1']);
+            $body = [
+                'Messages' => [[
+                    'From' => ['Email' => env('MAILJET_FROM_EMAIL'), 'Name' => env('MAILJET_FROM_NAME', 'PESO')],
+                    'To'   => [['Email' => $jobseeker->email, 'Name' => $jobseeker->full_name]],
+                    'TemplateID'       => 7869914,
+                    'TemplateLanguage' => true,
+                    'Subject'          => "You're Invited to Apply — {$bestJob->title} at {$company}",
+                    'Variables'        => [
+                        'first_name'       => $jobseeker->first_name,
+                        'company_name'     => $company,
+                        'job_title'        => $bestJob->title,
+                        'job_location'     => $bestJob->location ?? 'On-site',
+                        'employment_type'  => $bestJob->job_type ?? 'Full-time',
+                        'salary_range'     => $bestJob->salary_range ?? 'Negotiable',
+                        'work_setup'       => $bestJob->work_setup ?? 'On-site',
+                        'match_pct'        => (string) round($maxScore),
+                        'top_skills'       => $topSkills ?: 'your listed skills',
+                        'apply_url'        => $applyUrl,
+                    ],
+                ]],
+            ];
+            $response = $mj->post(\Mailjet\Resources::$Email, ['body' => $body]);
+            if (!$response->success()) {
+                \Illuminate\Support\Facades\Log::error('Mailjet Invite Error: ' . json_encode($response->getData()));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Mailjet Invite Exception: ' . $e->getMessage());
+        }
+
+        // Create notification for JOBSEEKER
+        $jobseekerNotif = Notification::create([
+            'subject'    => 'Job Invitation from ' . $company,
+            'message'    => "You have been personally invited by {$company} to apply for the {$bestJob->title} position. Check your email for details.",
+            'recipients' => 'jobseekers',
+            'scheduled_at' => null,
+            'sent_at'    => now(),
+            'status'     => 'sent',
+            'created_by' => $employer->id,
+        ]);
+        NotificationRead::create([
+            'notification_id' => $jobseekerNotif->id,
+            'recipient_type'  => 'jobseeker',
+            'recipient_id'    => $jobseeker->id,
+            'read_at'         => null,
+        ]);
+
+        // Create notification for EMPLOYER
+        $employerNotif = Notification::create([
+            'subject'    => 'Invitation Sent',
+            'message'    => "You successfully invited {$jobseeker->full_name} to apply for {$bestJob->title}.",
+            'recipients' => 'employers',
+            'scheduled_at' => null,
+            'sent_at'    => now(),
+            'status'     => 'sent',
+            'created_by' => $employer->id,
+        ]);
+        NotificationRead::create([
+            'notification_id' => $employerNotif->id,
+            'recipient_type'  => 'employer',
+            'recipient_id'    => $employer->id,
+            'read_at'         => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Invitation sent to {$jobseeker->full_name}",
+        ]);
+    }
 }
+
